@@ -3,8 +3,8 @@
 int
 main(int argc, char *argv[])
 {
-  char buff[1];
-  char strNum[10];
+  char buff;
+  char strNum[11];
   int nums[2];
   int argI = 0;
   int n;
@@ -18,38 +18,42 @@ main(int argc, char *argv[])
       exit(1);
     }
 
-    n = read(0, buff, 1);
-    if(n < 0){
+    n = read(0, &buff, 1);
+    if(n <= 0){
       fprintf(2, "Ошибка чтения\n");
       exit(1);
     }
-    if (buff[0] == ' ' || buff[0] == '\n')
+
+    if (buff == ' ' || buff == '\n')
     {
+      strNum[i] = '\0';
       nums[argI] = atoi(strNum);
       argI++;
-        
-      for(int j = 0; j < i; j++)
-        strNum[j] = ' ';
       i = 0;
     }
-    else if (i >= 10)
+    else if (i > 10)
     {
-      fprintf(2, "Ошибка: слишком длинная строка\n");
+      fprintf(2, "Ошибка: слишком большие числа\n");
       exit(1);
+    }
+    else if (buff > '9' || buff < '0') {
+      fprintf(2, "Ошибка: некорректный формат\n");
+      exit(1); 
     }
     else 
     {
-      strNum[i] = buff[0];
+      strNum[i] = buff;
       i++;
     }
-  } while(buff[0] != '\n');
+  } while(buff != '\n');
   
   if (argI < 2)
   {
     fprintf(2, "Ошибка: некорректный формат\n");
     exit(1);
   }
-    int sum = add(nums[0], nums[1]);
+    
+  int sum = add(nums[0], nums[1]);
   printf("|%d %d|", nums[0], nums[1]);
   printf("%d", sum);
   exit(0);
