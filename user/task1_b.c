@@ -17,10 +17,14 @@ main() {
     } else {
         printf("Parent pid: %d Child pid: %d\n", getpid(), pid);
         
-        kill(pid);
+        if (kill(pid) < 0) {
+            fprintf(2, "Erroe: Failed to kill with pid %d\n", pid);
+            exit(1);
+        }
         int exitCode;
         if (wait(&exitCode) < 0) {
             fprintf(2, "Erroe: Failed to wait\n");
+            exit(1);
         }
         printf("Child %d finished with %d\n", pid, exitCode);
         exit(0);

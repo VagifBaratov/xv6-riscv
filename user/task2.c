@@ -15,9 +15,15 @@ main(int argc, char **argv) {
         exit(1);
     }
     else if (pid == 0) {
-        close(pfd[1]);
-        close(0);
         
+        if (close(pfd[1]) < 0) {
+            fprintf(2, "Error: Failed to close write pipe in child\n");
+            exit(1);
+        }
+        if (close(0) < 0) {
+            fprintf(2, "Error: Failed to close cin\n");
+            exit(1);
+        }
         if(dup(pfd[0]) < 0) {
             fprintf(2, "Error: Failed to dup pipe[0]\n");
             exit(1);
@@ -35,27 +41,31 @@ main(int argc, char **argv) {
         close(pfd[0]);
         
     for (int i = 1; i < argc; i++) {
-            if (write(pfd[1], argv[i], strlen(argv[i])) < 0)
-            {
-                fprintf(2, "Error: Failed write to pipe\n");
-                exit(1);
+            int n = write(pfd[1], argv[i], strlen(argv[i]));
+            while (n != 0) {
+                if (n < 0)
+                {
+                    fprintf(2, "Error: Failed write to pipe\n");
+                    exit(1);
+                }
+                n = write(pfd[1], argv[i] + n, (strlen(argv[i]) - n));
             }
+            
             if (write(pfd[1], "\n", 1) < 0)
             {
                 fprintf(2, "Error: Failed write to pipe\n");
                 exit(1);
             }
-        }
-
-        if (close(pfd[1]) < 0) {
-            fprintf(2, "Error: Failed to close write pipe\n");
-            exit(1);
-        }
+    }
+    if (close(pfd[1]) < 0) {
+        fprintf(2, "Error: Failed to close write pipe\n");
+        exit(1);
+    }
         
-        if (wait(0) < 0) {
-            fprintf(2, "Error: Failed to wait\n");
-            exit(1);
-        }
+    if (wait(0) < 0) {
+        fprintf(2, "Error: Failed to wait\n");
+        exit(1);
+    }
         exit(0);
     }
 }

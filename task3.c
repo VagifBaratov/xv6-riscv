@@ -20,7 +20,10 @@ int main(int argc, char *argv[]) {
     }
 
     if (pid == 0) {
-        close(pfd[1]);
+        if (close(pfd[1]) < 0) {
+            perror( "Error: Failed to close write pipe in child\n");
+            exit(1);
+        }
 
         char buffer[128];
         ssize_t bytes_read;
@@ -34,9 +37,14 @@ int main(int argc, char *argv[]) {
         close(pfd[0]);
 
         for (int i = 1; i < argc; i++) {
-            if (write(pfd[1], argv[i], strlen(argv[i])) < 0) {
-                perror("Error: Failed write to pipe\n");
-                exit(1);
+            int n = write(pfd[1], argv[i], strlen(argv[i]));
+            while (n != 0)
+            {
+                if (n < 0) {
+                    perror("Error: Failed write to pipe\n");
+                    exit(1);
+                }
+                n = write(pfd[1], argv[i] + n, (strlen(argv[i]) - n));
             }
             if (write(pfd[1], "\n", 1) < 0) {
                 perror("Error: Failed write to pipe\n");
