@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
         char buffer[128];
         ssize_t bytes_read;
         while ((bytes_read = read(pfd[0], buffer, sizeof(buffer))) > 0) {
-            write(1, buffer, bytes_read);
+            printf("%s", buffer);
         }
 
         close(pfd[0]); 
