@@ -142,7 +142,9 @@ UPROGS=\
 	$U/_task1_a\
 	$U/_task1_b\
 	$U/_task2\
-
+	$U/_ps_test\
+	$U/_ps\
+	
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
 

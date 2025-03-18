@@ -1,4 +1,5 @@
 struct stat;
+struct procinfo;
 
 // system calls
 int fork(void);
@@ -41,3 +42,6 @@ void *memcpy(void *, const void *, unsigned int);
 // umalloc.c
 void* malloc(unsigned int);
 void free(void*);
+
+int getprocinfo(int pid, struct procinfo *pi);
+int ps_listinfo(struct procinfo *plist, int lim);
