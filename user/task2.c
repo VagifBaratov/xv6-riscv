@@ -41,14 +41,15 @@ main(int argc, char **argv) {
         close(pfd[0]);
         
     for (int i = 1; i < argc; i++) {
-            int n = write(pfd[1], argv[i], strlen(argv[i]));
-            while (n != 0) {
+            int buf_size = strlen(argv[i]);
+            while (buf_size > 0) {
+                int n = write(pfd[1], argv[i], buf_size);
                 if (n < 0)
                 {
                     fprintf(2, "Error: Failed write to pipe\n");
                     exit(1);
                 }
-                n = write(pfd[1], argv[i] + n, (strlen(argv[i]) - n));
+                buf_size -= n;
             }
             
             if (write(pfd[1], "\n", 1) < 0)
