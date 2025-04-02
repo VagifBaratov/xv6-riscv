@@ -27,6 +27,9 @@ int mutex(void);
 int mutex_lock(int);
 int mutex_unlock(int);
 
+int pagetableinfo(uint64 buf, int len, int flags);
+int pagetableclear(uint64 buf, int len, int flags);
+
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);

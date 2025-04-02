@@ -91,3 +91,36 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
+uint64
+sys_pagetableinfo(void) {
+  uint64 buff;
+  uint64 len;
+  int flags;
+  
+  argaddr(0, &buff);
+  argaddr(1, &len);
+  argint(2, &flags);
+
+  if(flags < 0 || flags > PTE_D)
+    return -1;
+
+  dump_pages(myproc()->pagetable, buff, len, flags);
+  return 0;
+}
+
+uint64
+sys_pagetableclear(void) {
+  uint64 buf;
+  int len, flags;
+  
+  argaddr(0, &buf);
+  argint(1, &len);
+  argint(2, &flags);
+  
+  if(flags < 0 || flags > 3)
+    return -1;
+
+  return clear_pte_flags(myproc()->pagetable, buf, len, flags);
+}

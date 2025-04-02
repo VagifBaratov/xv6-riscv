@@ -91,6 +91,7 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
   for(int level = 2; level > 0; level--) {
     pte_t *pte = &pagetable[PX(level, va)];
     if(*pte & PTE_V) {
+      //*pte |= PTE_A;
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {
       if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)
@@ -449,3 +450,101 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+
+void print_page(int level, uint64 index, pte_t pte, pagetable_t pt, int flags) {
+  char flags_str[8];
+    flags_str[0] = (pte & PTE_R) ? 'R' : '_';
+    flags_str[1] = (pte & PTE_W) ? 'W' : '_';
+    flags_str[2] = (pte & PTE_X) ? 'X' : '_';
+    flags_str[3] = (pte & PTE_U) ? 'U' : '_';
+    flags_str[4] = (pte & PTE_G) ? 'G' : '_';
+    flags_str[5] = (pte & PTE_A) ? 'A' : '_';
+    flags_str[6] = (pte & PTE_D) ? 'D' : '_';
+    flags_str[7] = '\0';
+ 
+  if (!(((flags == 1 || flags == 3) && (flags_str[5] == 'A'))||((flags == 2 || flags == 3) && (flags_str[6] == 'D')) 
+      || (flags == 0)) && level == 3) return;
+  
+  char *indent = "";
+  switch (level) {
+    case 2: indent = ""; break;
+    case 1: indent = "........."; break;
+    case 0: indent = "..................."; break;
+    default: break;
+  }
+  const char *zeroes = "";
+    if (index < 10) zeroes = "00";
+    else if (index < 100) zeroes = "0";
+    printf("%s0x%s%ld -> %p %s\n", indent, zeroes, index, pt, flags_str);
+}
+
+int
+dump_pagetable_rec(pagetable_t pagetable, uint64 start, uint64 end, uint64 va_src, int flags, int level)
+{
+  for (int i = 0; i < 512; ++i) {
+    if (!(pagetable[i] & PTE_V)) continue;
+
+    uint64 va = va_src | (uint64)i << PXSHIFT(level);
+    uint64 va_end = va + (1UL << PXSHIFT(level));
+    
+    if (va >= end || va_end <= start) continue;
+ 
+    pagetable_t next_pt = (pagetable_t)PTE2PA(pagetable[i]);
+    print_page(level, i, pagetable[i], next_pt, flags);
+    
+    if (level > 0)
+      return dump_pagetable_rec(next_pt, start, end, va, flags, level-1);
+  }
+  return 0; 
+}
+
+int
+dump_pages(pagetable_t pagetable, uint64 buf, uint64 len, int flags)
+{
+  if (flags > 3 || flags < 0 || len < 0)
+    return -1;
+  
+  uint64 start = 0, end = MAXVA - 1;
+  if (buf && len) {
+    start = PGROUNDDOWN(buf);
+    end = buf + len;
+  }
+  
+  printf("PAGETABLE %p\n", pagetable);
+  return dump_pagetable_rec(pagetable, start, end, 0, flags, 2);
+}
+
+
+int
+clear_pte_flags(pagetable_t pagetable, uint64 addr, uint64 len, int flags)
+{
+  uint64 end;
+  pte_t *pte;
+
+  if(addr == 0 && len == 0) {
+    end = MAXVA;
+    addr = 0;
+  } else {
+    end = addr + len;
+  }
+
+  for(uint64 va = addr; va < end; va += PGSIZE) {
+    if((pte = walk(pagetable, va, 0))) {
+      if(*pte & PTE_V) { 
+        pte_t old_pte = *pte;
+        pte_t new_pte = old_pte;
+
+        if(flags & 1) new_pte &= ~PTE_A; 
+        if(flags & 2) new_pte &= ~PTE_D;
+        
+        if(new_pte != old_pte) {
+          *pte = new_pte;
+          
+          sfence_vma();
+        }
+      }
+    }
+  }
+  return 0;
+} 
