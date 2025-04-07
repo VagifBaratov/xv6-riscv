@@ -60,9 +60,6 @@ void
 fileclose(struct file *f)
 {
   struct file ff;
-
-  if(f->type == FD_MUTEX && !holdingsleep(f->mutex))
-    acquiresleep(f->mutex);
     
   acquire(&ftable.lock);
 
@@ -70,7 +67,9 @@ fileclose(struct file *f)
     panic("fileclose");
   if(--f->ref > 0){
     if (f->type == FD_MUTEX)
-      releasesleep(f->mutex);
+      if(holdingsleep(f->mutex))
+        releasesleep(f->mutex);
+      
     release(&ftable.lock);
     return;
   }
@@ -87,6 +86,8 @@ fileclose(struct file *f)
     end_op();
   } else if(ff.type == FD_MUTEX) {
     f->type = FD_MUTEX;
+    if(holdingsleep(f->mutex))
+      releasesleep(f->mutex);
     mutexclose(f);
     f->type = FD_NONE;
   }

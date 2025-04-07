@@ -5,7 +5,7 @@
 
 void test_read_write()
 {
-    printf("Testing read/write on mutex...\n");
+    printf("\nTesting read/write on mutex...\n");
     char buf[1];
     int mx = mutex();
     if(mx < 0) {
@@ -24,11 +24,12 @@ void test_read_write()
     } else {
         printf("Write to mutex correctly failed\n");
     }
+    close(mx);
 }
 
 void test_close_locked(int is_foreign)
 {   
-    printf("Testing close of %s mutex...\n", is_foreign ? "foreign locked" : "self locked");
+    printf("\nTesting close of %s mutex...\n", is_foreign ? "foreign locked" : "self locked");
     int mx = mutex();
     if(mx < 0) {
         printf("Failed to create mutex\n");
@@ -60,20 +61,24 @@ void test_close_locked(int is_foreign)
             }
             printf("Child locked mutex\n");
             sleep(35);
-            printf("Child unlocked mutex\n");
-            mutex_unlock(mx);
+            if(close(mx) < 0) {   
+                printf("Failed to close mutex\n");
+                exit(1);
+            }
+            printf("Successfully closed after ref = 0\n");
         }
         exit(0);
     } else {
         sleep(10);
         if(close(mx) < 0) {   
-            printf("Error: should be able to close self locked mutex\n");
-            exit(0);
+            printf("Failed to close mutex\n");
+            exit(1);
         } else {
-            if (!is_foreign)
+            if (!is_foreign) {
                 printf("Successfully closed self locked mutex\n");
-            else {
-                printf("Successfully can't closed foreign locked mutex before unlock\n");
+                wait(0);
+            } else {
+                wait(0);
             }
             return;
         }
@@ -83,7 +88,7 @@ void test_close_locked(int is_foreign)
 
 void test_exit_with_mutex()
 {
-    printf("Testing process exit with locked mutex...\n");
+    printf("\nTesting process exit with locked mutex...\n");
     int mx = mutex();
     if(mx < 0) {
         printf("Failed to create mutex\n");
@@ -103,6 +108,12 @@ void test_exit_with_mutex()
             close(mx);
             exit(1);
         }
+        int child_mx = mutex();
+        if(child_mx < 0) {
+            printf("Failed to create mutex\n");
+            close(mx);
+            exit(1);
+        }
         exit(0);
     } else {
         wait(0);
@@ -117,7 +128,7 @@ void test_exit_with_mutex()
 
 void test_unlock_foreign()
 {
-    printf("Testing unlocking foreign mutex...\n");
+    printf("\nTesting unlocking foreign mutex...\n");
     int mx = mutex();
     if(mx < 0) {
         printf("Failed to create mutex\n");
