@@ -142,6 +142,7 @@ UPROGS=\
 	$U/_zombie\
 	$U/_mutex_test\
 	$U/_mutex_cases\
+	$U/_pagetest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

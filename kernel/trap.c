@@ -50,6 +50,14 @@ usertrap(void)
   // save user program counter.
   p->trapframe->epc = r_sepc();
   
+  if(r_scause() == 15) {  
+    uint64 va = r_stval();
+    pte_t *pte = walk(p->pagetable, va, 0);
+    if(pte && (*pte & PTE_D) == 0) {
+        *pte |= PTE_D;
+    }
+  }
+
   if(r_scause() == 8){
     // system call
 
