@@ -4,8 +4,13 @@
 
 #define PAGE_SIZE 4096
 #define ARRAY_SIZE (2 * PAGE_SIZE + 1234) 
+#define A 1
+#define D 2
 
-int global_var;
+void perror(const char *str) {
+  write(2, str, strlen(str));
+  exit(1);
+}
 
 void print_pages(char *msg, uint64 buf, int len, int flags) {
   printf("\n%s:\n", msg);
@@ -15,36 +20,40 @@ void print_pages(char *msg, uint64 buf, int len, int flags) {
 int main() {
   print_pages("Initial page table", 0, 0, 0);
   
-  print_pages("Before writing to global var", (uint64)&global_var, sizeof(global_var), 0);
-  global_var = 1;
-  print_pages("After writing to global var", (uint64)&global_var, sizeof(global_var), 0);
- 
-  int stack_var;
-  stack_var = 2;
-  print_pages("After writing to stack var", (uint64)&stack_var, sizeof(stack_var), 0);
+  char var = 33;
+  char stack_array[ARRAY_SIZE ];
+  stack_array[0] = 'a';
+
+  print_pages("After writing to stack var", (uint64)&var, 1, D);
+  print_pages("After writing to stack array", (uint64)stack_array, sizeof(stack_array), A);
   
-  int stack_array[10];
-  stack_array[0] = 3;
-  print_pages("After writing to stack array", (uint64)stack_array, sizeof(stack_array), 0);
- 
-  int *heap_array = malloc(ARRAY_SIZE * sizeof(int));
-  heap_array[0] = 4;
-  heap_array[PAGE_SIZE/sizeof(int)] = 5;
-  heap_array[2*PAGE_SIZE/sizeof(int)] = 6;
-  print_pages("After allocating and writing to heap array", (uint64)heap_array, ARRAY_SIZE * sizeof(int), 0);
+  char *arr = malloc(ARRAY_SIZE);
+  if ((uint64)arr == -1) {
+    perror("Failed allocate memory");
+  }
 
-  pagetableclear(0, 0, 3);
-  print_pages("After clearing A and D flags", 0, 0, 0);
+  print_pages("After allocating heap array", (uint64)arr, ARRAY_SIZE, A | D);
 
-  int tmp = global_var + stack_var + stack_array[0] + heap_array[0] + 
-            heap_array[PAGE_SIZE/sizeof(int)] + heap_array[2*PAGE_SIZE/sizeof(int)];
-  print_pages("After reading data", 0, 0, 2);
+  pagetableclear((uint64)arr, ARRAY_SIZE, A | D);
+  print_pages("After clearing A and D flags", (uint64)arr, ARRAY_SIZE, A | D);
+
+  char val = arr[0];
+  (void)val;
+
+  print_pages("After reading data", (uint64)stack_array, ARRAY_SIZE, A | D);
+
+  arr[0] = 'B';
+  arr[2000] = 'C';
   
-  heap_array[0] = tmp;
-  heap_array[PAGE_SIZE/sizeof(int)] = tmp + 1;
-  print_pages("After modifying data", 0, 0, 1);
+  print_pages("After modifying data", (uint64)arr, ARRAY_SIZE, A | D);
 
-  free(heap_array);
-  print_pages("After freeing heap array", 0, 0, 0);
+  free(arr);
+  print_pages("After freeing heap array", (uint64)arr, ARRAY_SIZE, A | D);
+  
+  print_pages("Pages with A", 0, 0, A);
+
+  print_pages("Pages with D", 0, 0, D);
+
+  print_pages("Pages with A|D", 0, 0, A | D);
   return 0;
 }

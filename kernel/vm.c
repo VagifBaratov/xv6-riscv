@@ -6,6 +6,9 @@
 #include "defs.h"
 #include "fs.h"
 
+#define A 1
+#define D 2
+
 /*
  * the kernel's page table.
  */
@@ -463,8 +466,9 @@ void print_page(int level, uint64 index, pte_t pte, pagetable_t pt, int flags) {
     flags_str[6] = (pte & PTE_D) ? 'D' : '_';
     flags_str[7] = '\0';
  
-  if (!(((flags == 1 || flags == 3) && (flags_str[5] == 'A'))||((flags == 2 || flags == 3) && (flags_str[6] == 'D')) 
-      || (flags == 0)) && level == 3) return;
+  if (!(((flags & A) && (flags_str[5] == 'A')) || 
+        ((flags & D) && (flags_str[6] == 'D')) || 
+        (flags == 0)) && level == 3) return;
   
   char *indent = "";
   switch (level) {
@@ -508,7 +512,7 @@ dump_pages(pagetable_t pagetable, uint64 buf, uint64 len, int flags)
   uint64 start = 0, end = MAXVA - 1;
   if (buf && len) {
     start = PGROUNDDOWN(buf);
-    end = buf + len;
+    end = PGROUNDUP(buf + len);
   }
   
   printf("PAGETABLE %p\n", pagetable);
@@ -517,32 +521,55 @@ dump_pages(pagetable_t pagetable, uint64 buf, uint64 len, int flags)
 
 
 int
-clear_pte_flags(pagetable_t pagetable, uint64 addr, uint64 len, int flags)
+clear_pte_flags(pagetable_t pt0, uint64 addr, uint64 len, int flags)
 {
-  uint64 end;
-  pte_t *pte;
-
-  if(addr == 0 && len == 0) {
-    end = MAXVA;
-    addr = 0;
-  } else {
-    end = addr + len;
+  if (flags > 3 || flags < 0 || len < 0)
+        return -1;
+      
+  uint64 start = 0, end = MAXVA - 1;
+  if (addr && len) {
+    start = PGROUNDDOWN(addr);
+    end = PGROUNDUP(start + len);
   }
 
-  for(uint64 va = addr; va < end; va += PGSIZE) {
-    if((pte = walk(pagetable, va, 0))) {
-      if(*pte & PTE_V) { 
-        pte_t old_pte = *pte;
-        pte_t new_pte = old_pte;
+  for (int i = 0; i < 512; ++i) {
+    if (!(pt0[i] & PTE_V)) 
+      continue;
 
-        if(flags & 1) new_pte &= ~PTE_A; 
-        if(flags & 2) new_pte &= ~PTE_D;
-        
-        if(new_pte != old_pte) {
-          *pte = new_pte;
-          
-          sfence_vma();
-        }
+    uint64 va_1 = (uint64)i << PXSHIFT(2);
+    uint64 va_1_end = va_1 + (1UL << PXSHIFT(2));
+
+    if (va_1 >= end || va_1_end <= start)
+        continue;
+
+    pagetable_t pt1 = (pagetable_t)PTE2PA(pt0[i]);
+
+    for (int j = 0; j < 512; ++j) {
+      if (!(pt1[j] & PTE_V)) 
+        continue;
+
+      uint64 va_2 = va_1 | (uint64)j << PXSHIFT(1);
+      uint64 va_2_end = va_2 + (1UL << PXSHIFT(1));
+
+      if (va_2 >= end || va_2_end <= start)
+        continue;
+
+      pagetable_t pt2 = (pagetable_t)PTE2PA(pt1[j]);
+
+      for (int k = 0; k < 512; ++k) {
+        if (!(pt2[k] & PTE_V)) 
+          continue;
+
+        uint64 va_3 = va_2 | (uint64)k << PXSHIFT(0);
+        uint64 va_3_end = va_3 + (1UL << PXSHIFT(0));
+
+        if (va_3 >= end || va_3_end <= start)
+          continue;
+
+        if ((flags & A) && (pt2[k] & (uint64)PTE_A))
+          pt2[k] &= ~(uint64)PTE_A;
+        if ((flags & D) && (pt2[k] & (uint64)PTE_D))
+          pt2[k] &= ~(uint64)PTE_D;
       }
     }
   }
