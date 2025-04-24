@@ -29,7 +29,8 @@ OBJS = \
   $K/kernelvec.o \
   $K/plic.o \
   $K/virtio_disk.o \
-  $K/mutex.o
+  $K/mutex.o \
+  $K/pseudodev.o
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -143,6 +144,8 @@ UPROGS=\
 	$U/_mutex_test\
 	$U/_mutex_cases\
 	$U/_pagetest\
+	$U/_hexdump\
+	$U/_some_tests
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
