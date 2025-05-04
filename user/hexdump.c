@@ -17,23 +17,35 @@ int main(int argc, char *argv[])
   }
   
   int count = atoi(argv[2]);
-  char buf[1];
-  
-  for(int i = 0; i < count; i++){
-    if(read(fd, buf, 1) != 1){
-      if(i == 0){
-        fprintf(2, "hexdump: read error\n");
-        exit(1);
-      }
+ 
+  static char buf[512]; 
+  int bytes_read;
+  int bytes_printed = 0;
+
+  while(bytes_printed < count){
+    int chunk = (count - bytes_printed > sizeof(buf)) ? sizeof(buf) : (count - bytes_printed);
+    bytes_read = read(fd, &buf, chunk);
+    if(bytes_read < 0){
+      fprintf(2, "hexdump: read error\n");
+      exit(1);
+    }
+    if(bytes_read == 0){
       break;
     }
-    int byte = buf[0] & 0xff;
-    if (byte <= 0xf) printf("0");
-    
-    printf("%x ", buf[0] & 0xff);
-    if((i+1) % 16 == 0)
-      printf("\n");
+
+    for(int i = 0; i < bytes_read && bytes_printed < count; i++){
+      if(buf[i] <= 0xf) printf("0");
+      printf("%x ", buf[i]);
+      bytes_printed++;
+      
+      if(bytes_printed % 16 == 0)
+        printf("\n");
+    }
   }
+
+  if(bytes_printed % 16 != 0)
+    printf("\n");
+
   close(fd);
   exit(0);
 }

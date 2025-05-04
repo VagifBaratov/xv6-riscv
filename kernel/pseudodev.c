@@ -20,35 +20,34 @@ struct {
 
 int pseudodev_read(int user_dst, uint64 dst, int n, short minor)
 {
-  acquire(&pseudo_dev.lock);
-
   switch(minor) {
     case NULL_DEV:
-      release(&pseudo_dev.lock);
       return 0;
     
     case ZERO_DEV:
       if(dst == 0 || n <= 0) {
-        release(&pseudo_dev.lock);
         return 0;
       }
-      
-      for(int i = 0; i < n; i++) {
-        int nll = 0;
-        if (either_copyout(user_dst, dst + i, &nll, 1) < 0) {
-          release(&pseudo_dev.lock);
-          return -1;
+
+      static char zero_buf[512]; 
+      memset(zero_buf, 0, sizeof(zero_buf));
+
+      int copied = 0;
+      while (copied < n) {
+        int chunk = (n - copied > sizeof(zero_buf)) ? sizeof(zero_buf) : (n - copied);
+        if (either_copyout(user_dst, dst + copied, zero_buf, chunk) < 0) {
+            return -1;
         }
+        copied += chunk;
       }
-      release(&pseudo_dev.lock);
-      return n;
+      return copied;
       
     case URANDOM_DEV: {
       if(dst == 0 || n <= 0) {
-        release(&pseudo_dev.lock);
         return 0;
       }
-      
+
+      acquire(&pseudo_dev.lock);
       for(int i = 0; i < n; i++) {
         pseudo_dev.seed = pseudo_dev.seed * 1664525 + 1013904223;
         uint8 rand = (uint8)(pseudo_dev.seed >> 16);
@@ -57,16 +56,16 @@ int pseudodev_read(int user_dst, uint64 dst, int n, short minor)
           return -1;
         }
       }
-      
       release(&pseudo_dev.lock);
       return n;
     }
     
     case NULLSTAT_DEV:
       if(n != sizeof(uint64)) {
-        release(&pseudo_dev.lock);
         return -1;
       }
+
+      acquire(&pseudo_dev.lock);
 
       if (either_copyout(user_dst, dst, &pseudo_dev.bytes_written, n) < 0) {
         release(&pseudo_dev.lock);
@@ -77,29 +76,25 @@ int pseudodev_read(int user_dst, uint64 dst, int n, short minor)
       return n;
     
     default:
-      release(&pseudo_dev.lock);
       return -1;
   }
 }
 
 int pseudodev_write(int user_src, uint64 src, int n, short minor)
 {
-  acquire(&pseudo_dev.lock);
   switch(minor) {
     case NULL_DEV:
-      release(&pseudo_dev.lock);
       return n; 
     
     case ZERO_DEV:
-      release(&pseudo_dev.lock);
-      return -1; 
+       return -1; 
     
     case URANDOM_DEV:
       if(n != sizeof(uint64)) {
-        release(&pseudo_dev.lock);
         return -1;
       }
       
+      acquire(&pseudo_dev.lock);
       uint64 new_seed;
       if (either_copyin(&new_seed, user_src, src, n) < 0) {
         release(&pseudo_dev.lock);
@@ -111,12 +106,12 @@ int pseudodev_write(int user_src, uint64 src, int n, short minor)
       return n;
     
     case NULLSTAT_DEV:
+      acquire(&pseudo_dev.lock);
       pseudo_dev.bytes_written += n;
       release(&pseudo_dev.lock);
       return n;
     
     default:
-      release(&pseudo_dev.lock);
       return -1;
   }
 }
