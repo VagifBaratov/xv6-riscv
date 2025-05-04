@@ -196,3 +196,6 @@ void            virtio_disk_intr(void);
 //mutex.c
 int mutexalloc(struct file **f);
 void mutexclose(struct file *f);
+
+// pseudodev.c
+void pseudodev_init(void);
